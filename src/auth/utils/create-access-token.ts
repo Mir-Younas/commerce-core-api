@@ -11,7 +11,7 @@ export async function createAccessToken(
     { sub: userId },
     {
       secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: ACCESS_TOKEN_MAX_AGE_MS ,
+      expiresIn: ACCESS_TOKEN_MAX_AGE_MS,
     },
   );
 }

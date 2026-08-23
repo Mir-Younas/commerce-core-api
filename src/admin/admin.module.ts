@@ -5,8 +5,8 @@ import { ProductsModule } from 'src/products/products.module';
 import { OrdersModule } from 'src/orders/orders.module';
 
 @Module({
-  imports:[ProductsModule, OrdersModule],
+  imports: [ProductsModule, OrdersModule],
   controllers: [AdminController],
-  providers: [AdminService]
+  providers: [AdminService],
 })
 export class AdminModule {}

@@ -1,4 +1,4 @@
-import {Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -17,7 +17,6 @@ export enum ProductSort {
   PRICE_ASC = 'price_asc',
   PRICE_DESC = 'price_desc',
 }
-
 
 export class ProductFilterDto {
   @IsOptional()

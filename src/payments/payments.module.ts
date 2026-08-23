@@ -8,9 +8,7 @@ import { SafepayService } from './safepay/safepay.service';
 import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [
-    HttpModule,
-  ],
+  imports: [HttpModule],
   controllers: [PaymentsController, JazzcashController, SafepayController],
 
   providers: [PaymentsService, JazzcashService, SafepayService],

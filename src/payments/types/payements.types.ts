@@ -1,6 +1,3 @@
-import { PaymentProvider } from "@prisma/client";
-
-
 export type CreatePaymentRequestInput = {
   paymentId: string;
   orderId: string;

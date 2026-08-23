@@ -1,5 +1,4 @@
-import { escapeHtml } from "../utils/escape-html.util";
-
+import { escapeHtml } from '../utils/escape-html.util';
 
 type ActionEmailTemplateParams = {
   heading: string;

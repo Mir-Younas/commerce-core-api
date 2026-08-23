@@ -7,6 +7,6 @@ import { S3Module } from 'src/common/s3/s3.module';
   imports: [S3Module],
   controllers: [ProductsController],
   providers: [ProductsService],
-  exports:[ProductsService]
+  exports: [ProductsService],
 })
 export class ProductsModule {}

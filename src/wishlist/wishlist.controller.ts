@@ -19,9 +19,7 @@ import { WishlistService } from './wishlist.service';
 @Controller('wishlist')
 @UseGuards(JwtAuthGuard)
 export class WishlistController {
-  constructor(
-    private readonly wishlistService: WishlistService,
-  ) {}
+  constructor(private readonly wishlistService: WishlistService) {}
 
   @Post(':productId')
   @HttpCode(HttpStatus.CREATED)
@@ -30,11 +28,10 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe)
     productId: string,
   ) {
-    const wishlistItem =
-      await this.wishlistService.addToWishlist(
-        req.user.id,
-        productId,
-      );
+    const wishlistItem = await this.wishlistService.addToWishlist(
+      req.user.id,
+      productId,
+    );
 
     return {
       message: 'Product added to wishlist successfully',
@@ -44,13 +41,8 @@ export class WishlistController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findMyWishlist(
-    @Req() req: AuthRequest,
-  ) {
-    const wishlist =
-      await this.wishlistService.findMyWishlist(
-        req.user.id,
-      );
+  async findMyWishlist(@Req() req: AuthRequest) {
+    const wishlist = await this.wishlistService.findMyWishlist(req.user.id);
 
     return {
       message: 'Wishlist fetched successfully',
@@ -65,15 +57,13 @@ export class WishlistController {
     @Param('productId', ParseUUIDPipe)
     productId: string,
   ) {
-    const wishlistItem =
-      await this.wishlistService.removeFromWishlist(
-        req.user.id,
-        productId,
-      );
+    const wishlistItem = await this.wishlistService.removeFromWishlist(
+      req.user.id,
+      productId,
+    );
 
     return {
-      message:
-        'Product removed from wishlist successfully',
+      message: 'Product removed from wishlist successfully',
       wishlistItem,
     };
   }

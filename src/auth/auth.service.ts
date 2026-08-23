@@ -24,7 +24,6 @@ import type { GoogleUser } from './auth.types';
 const EMAIL_VERIFICATION_EXPIRES_IN_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_EXPIRES_IN_MS = 15 * 60 * 1000;
 
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -137,7 +136,6 @@ export class AuthService {
     });
 
     await this.createAndSendVerificationEmail(user.id, user.email);
-
   }
 
   async login(body: LoginDto) {
@@ -212,76 +210,66 @@ export class AuthService {
     });
   }
 
- async refresh(refreshToken?: string) {
-  if (!refreshToken) {
-    throw new UnauthorizedException('Refresh token is missing');
-  }
+  async refresh(refreshToken?: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is missing');
+    }
 
-  const refreshTokenSecret =
-    this.configService.getOrThrow<string>(
+    const refreshTokenSecret = this.configService.getOrThrow<string>(
       'REFRESH_TOKEN_HASH_SECRET',
     );
 
-  const refreshTokenHash = hashToken(
-    refreshToken,
-    refreshTokenSecret,
-  );
+    const refreshTokenHash = hashToken(refreshToken, refreshTokenSecret);
 
-  const session = await this.prisma.session.findUnique({
-    where: {
-      refreshTokenHash,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          status: true,
-          isEmailVerified: true,
-        },
-      },
-    },
-  });
-
-  if (!session) {
-    throw new UnauthorizedException(
-      'Invalid or expired refresh token',
-    );
-  }
-
-  if (session.expiresAt <= new Date()) {
-    await this.prisma.session.deleteMany({
+    const session = await this.prisma.session.findUnique({
       where: {
         refreshTokenHash,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            status: true,
+            isEmailVerified: true,
+          },
+        },
+      },
     });
 
-    throw new UnauthorizedException(
-      'Invalid or expired refresh token',
+    if (!session) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (session.expiresAt <= new Date()) {
+      await this.prisma.session.deleteMany({
+        where: {
+          refreshTokenHash,
+        },
+      });
+
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (session.user.status === UserStatus.BLOCKED) {
+      throw new ForbiddenException('Your account has been blocked');
+    }
+
+    if (!session.user.isEmailVerified) {
+      throw new ForbiddenException(
+        'Please verify your email before continuing',
+      );
+    }
+
+    const accessToken = await createAccessToken(
+      this.jwtService,
+      this.configService,
+      session.user.id,
     );
+
+    return {
+      accessToken,
+    };
   }
-
-  if (session.user.status === UserStatus.BLOCKED) {
-    throw new ForbiddenException(
-      'Your account has been blocked',
-    );
-  }
-
-  if (!session.user.isEmailVerified) {
-    throw new ForbiddenException(
-      'Please verify your email before continuing',
-    );
-  }
-
-  const accessToken = await createAccessToken(
-    this.jwtService,
-    this.configService,
-    session.user.id,
-  );
-
-  return {
-    accessToken,
-  };
-}
 
   async verifyEmail(rawToken: string): Promise<void> {
     const verificationTokenSecret = this.configService.getOrThrow<string>(
@@ -443,54 +431,10 @@ export class AuthService {
     });
   }
 
-async googleLogin(googleUser: GoogleUser) {
-  let user = await this.prisma.user.findUnique({
-    where: {
-      email: googleUser.email,
-    },
-    select: {
-      id: true,
-      googleId: true,
-      status: true,
-    },
-  });
-
-  if (user && user.status === UserStatus.BLOCKED) {
-    throw new ForbiddenException('Your account has been blocked');
-  }
-
-  if (user?.googleId && user.googleId !== googleUser.googleId) {
-    throw new ConflictException(
-      'This email is already linked with another Google account',
-    );
-  }
-
-  if (!user) {
-    user = await this.prisma.user.create({
-      data: {
-        name: googleUser.name || googleUser.email.split('@')[0],
-        email: googleUser.email,
-        googleId: googleUser.googleId,
-        isEmailVerified: true,
-        role: Role.USER,
-        status: UserStatus.ACTIVE,
-      },
-      select: {
-        id: true,
-        googleId: true,
-        status: true,
-      },
-    });
-  }
-
-  if (!user.googleId) {
-    user = await this.prisma.user.update({
+  async googleLogin(googleUser: GoogleUser) {
+    let user = await this.prisma.user.findUnique({
       where: {
-        id: user.id,
-      },
-      data: {
-        googleId: googleUser.googleId,
-        isEmailVerified: true,
+        email: googleUser.email,
       },
       select: {
         id: true,
@@ -498,14 +442,57 @@ async googleLogin(googleUser: GoogleUser) {
         status: true,
       },
     });
+
+    if (user && user.status === UserStatus.BLOCKED) {
+      throw new ForbiddenException('Your account has been blocked');
+    }
+
+    if (user?.googleId && user.googleId !== googleUser.googleId) {
+      throw new ConflictException(
+        'This email is already linked with another Google account',
+      );
+    }
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          name: googleUser.name || googleUser.email.split('@')[0],
+          email: googleUser.email,
+          googleId: googleUser.googleId,
+          isEmailVerified: true,
+          role: Role.USER,
+          status: UserStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+          googleId: true,
+          status: true,
+        },
+      });
+    }
+
+    if (!user.googleId) {
+      user = await this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          googleId: googleUser.googleId,
+          isEmailVerified: true,
+        },
+        select: {
+          id: true,
+          googleId: true,
+          status: true,
+        },
+      });
+    }
+
+    const { accessToken, refreshToken } = await this.createAuthSession(user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
-
-  const { accessToken, refreshToken } =
-    await this.createAuthSession(user.id);
-
-  return {
-    accessToken,
-    refreshToken,
-  };
-}
 }

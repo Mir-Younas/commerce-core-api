@@ -1,5 +1,5 @@
 import { ProductStatus } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -11,6 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { ToBoolean } from 'src/common/decorators/to-boolean.decorator';
 
 export class CreateProductDto {
   @IsString()
@@ -52,17 +53,7 @@ export class CreateProductDto {
   status?: ProductStatus;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === true || value === 'true') {
-      return true;
-    }
-
-    if (value === false || value === 'false') {
-      return false;
-    }
-
-    return value;
-  })
+  @ToBoolean()
   @IsBoolean()
   isFeatured?: boolean;
 

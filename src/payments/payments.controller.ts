@@ -17,9 +17,7 @@ import { PaymentsService } from './payments.service';
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
 export class PaymentsController {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post(':id/initiate')
   @HttpCode(HttpStatus.OK)
@@ -27,11 +25,10 @@ export class PaymentsController {
     @Req() req: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const result =
-      await this.paymentsService.initiateOnlinePayment(
-        req.user.id,
-        id,
-      );
+    const result = await this.paymentsService.initiateOnlinePayment(
+      req.user.id,
+      id,
+    );
 
     return {
       message: 'Payment initiated successfully',
@@ -46,11 +43,10 @@ export class PaymentsController {
     @Param('orderId', ParseUUIDPipe)
     orderId: string,
   ) {
-    const payment =
-      await this.paymentsService.findPaymentByOrder(
-        req.user.id,
-        orderId,
-      );
+    const payment = await this.paymentsService.findPaymentByOrder(
+      req.user.id,
+      orderId,
+    );
 
     return {
       message: 'Payment fetched successfully',
@@ -64,11 +60,7 @@ export class PaymentsController {
     @Req() req: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const payment =
-      await this.paymentsService.findMyPayment(
-        req.user.id,
-        id,
-      );
+    const payment = await this.paymentsService.findMyPayment(req.user.id, id);
 
     return {
       message: 'Payment fetched successfully',

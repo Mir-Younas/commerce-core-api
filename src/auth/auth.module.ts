@@ -10,6 +10,6 @@ import { GoogleStrategy } from './strategies/google.strategy';
 @Module({
   imports: [JwtModule.register({}), EmailModule],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RolesGuard, GoogleStrategy,],
+  providers: [AuthService, JwtStrategy, RolesGuard, GoogleStrategy],
 })
 export class AuthModule {}

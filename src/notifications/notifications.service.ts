@@ -16,8 +16,7 @@ import type {
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger =
-    new Logger(NotificationsService.name);
+  private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
     private readonly emailService: EmailService,
@@ -35,10 +34,7 @@ export class NotificationsService {
         order: params.order,
       }),
 
-      this.smsService.sendOrderConfirmedSms(
-        params.phone,
-        params.order.id,
-      ),
+      this.smsService.sendOrderConfirmedSms(params.phone, params.order.id),
     ];
 
     if (params.pushToken) {
@@ -50,10 +46,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'order confirmed',
-      tasks,
-    );
+    await this.runNotificationTasks('order confirmed', tasks);
   }
 
   async sendOrderShippedNotification(
@@ -84,10 +77,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'order shipped',
-      tasks,
-    );
+    await this.runNotificationTasks('order shipped', tasks);
   }
 
   async sendOrderDeliveredNotification(
@@ -100,10 +90,7 @@ export class NotificationsService {
         orderId: params.orderId,
       }),
 
-      this.smsService.sendOrderDeliveredSms(
-        params.phone,
-        params.orderId,
-      ),
+      this.smsService.sendOrderDeliveredSms(params.phone, params.orderId),
     ];
 
     if (params.pushToken) {
@@ -115,10 +102,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'order delivered',
-      tasks,
-    );
+    await this.runNotificationTasks('order delivered', tasks);
   }
 
   async sendReturnApprovedNotification(
@@ -146,10 +130,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'return approved',
-      tasks,
-    );
+    await this.runNotificationTasks('return approved', tasks);
   }
 
   async sendReturnRejectedNotification(
@@ -180,10 +161,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'return rejected',
-      tasks,
-    );
+    await this.runNotificationTasks('return rejected', tasks);
   }
 
   async sendReturnReceivedNotification(
@@ -211,10 +189,7 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'return received',
-      tasks,
-    );
+    await this.runNotificationTasks('return received', tasks);
   }
 
   async sendRefundCompletedNotification(
@@ -245,18 +220,14 @@ export class NotificationsService {
       );
     }
 
-    await this.runNotificationTasks(
-      'refund completed',
-      tasks,
-    );
+    await this.runNotificationTasks('refund completed', tasks);
   }
 
   private async runNotificationTasks(
     eventName: string,
     tasks: Promise<void>[],
   ): Promise<void> {
-    const results =
-      await Promise.allSettled(tasks);
+    const results = await Promise.allSettled(tasks);
 
     for (const result of results) {
       if (result.status === 'rejected') {

@@ -21,10 +21,29 @@ import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
-     ConfigModule.forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule, AuthModule, CategoriesModule, S3Module, ProductsModule, AdminModule, CartModule, OrdersModule, UsersModule, UsersModule, PaymentsModule, WishlistModule, AddressesModule, ReviewsModule, CouponsModule, ReturnsModule, NotificationsModule, SmsModule, PushModule],
+    PrismaModule,
+    AuthModule,
+    CategoriesModule,
+    S3Module,
+    ProductsModule,
+    AdminModule,
+    CartModule,
+    OrdersModule,
+    UsersModule,
+    UsersModule,
+    PaymentsModule,
+    WishlistModule,
+    AddressesModule,
+    ReviewsModule,
+    CouponsModule,
+    ReturnsModule,
+    NotificationsModule,
+    SmsModule,
+    PushModule,
+  ],
   controllers: [],
   providers: [],
 })

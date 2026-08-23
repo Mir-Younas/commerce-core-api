@@ -23,21 +23,12 @@ import { UpdateAddressDto } from './dto/update-address.dto';
 @Controller('addresses')
 @UseGuards(JwtAuthGuard)
 export class AddressesController {
-  constructor(
-    private readonly addressesService: AddressesService,
-  ) {}
+  constructor(private readonly addressesService: AddressesService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(
-    @Req() req: AuthRequest,
-    @Body() body: CreateAddressDto,
-  ) {
-    const address =
-      await this.addressesService.create(
-        req.user.id,
-        body,
-      );
+  async create(@Req() req: AuthRequest, @Body() body: CreateAddressDto) {
+    const address = await this.addressesService.create(req.user.id, body);
 
     return {
       message: 'Address created successfully',
@@ -47,13 +38,8 @@ export class AddressesController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(
-    @Req() req: AuthRequest,
-  ) {
-    const addresses =
-      await this.addressesService.findAll(
-        req.user.id,
-      );
+  async findAll(@Req() req: AuthRequest) {
+    const addresses = await this.addressesService.findAll(req.user.id);
 
     return {
       message: 'Addresses fetched successfully',
@@ -68,11 +54,7 @@ export class AddressesController {
     @Param('id', ParseUUIDPipe)
     id: string,
   ) {
-    const address =
-      await this.addressesService.findOne(
-        req.user.id,
-        id,
-      );
+    const address = await this.addressesService.findOne(req.user.id, id);
 
     return {
       message: 'Address fetched successfully',
@@ -88,12 +70,7 @@ export class AddressesController {
     id: string,
     @Body() body: UpdateAddressDto,
   ) {
-    const address =
-      await this.addressesService.update(
-        req.user.id,
-        id,
-        body,
-      );
+    const address = await this.addressesService.update(req.user.id, id, body);
 
     return {
       message: 'Address updated successfully',
@@ -108,11 +85,7 @@ export class AddressesController {
     @Param('id', ParseUUIDPipe)
     id: string,
   ) {
-    const address =
-      await this.addressesService.setDefault(
-        req.user.id,
-        id,
-      );
+    const address = await this.addressesService.setDefault(req.user.id, id);
 
     return {
       message: 'Default address updated successfully',
@@ -127,11 +100,7 @@ export class AddressesController {
     @Param('id', ParseUUIDPipe)
     id: string,
   ) {
-    const address =
-      await this.addressesService.remove(
-        req.user.id,
-        id,
-      );
+    const address = await this.addressesService.remove(req.user.id, id);
 
     return {
       message: 'Address deleted successfully',

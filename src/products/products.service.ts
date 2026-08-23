@@ -17,6 +17,7 @@ import {
   buildPaginationMeta,
   getPaginationParams,
 } from 'src/common/utils/pagination.util';
+import { ProductUpdateSnapshot } from './product.types';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
@@ -67,6 +68,40 @@ export class ProductsService {
 
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+  }
+
+  private ensureProductHasChanges(
+    product: ProductUpdateSnapshot,
+    body: UpdateProductDto,
+  ): void {
+    const newName = body.name ?? product.name;
+    const newSlug = body.name ? createSlug(body.name) : product.slug;
+    const newDescription = body.description ?? product.description;
+    const newPrice = body.price ?? product.price;
+    const newDiscountPrice = body.discountPrice ?? product.discountPrice;
+    const newStock = body.stock ?? product.stock;
+    const newSku = body.sku ?? product.sku;
+    const newBrand = body.brand ?? product.brand;
+    const newStatus = body.status ?? product.status;
+    const newIsFeatured = body.isFeatured ?? product.isFeatured;
+    const newCategoryId = body.categoryId ?? product.categoryId;
+
+    const noChanges =
+      newName === product.name &&
+      newSlug === product.slug &&
+      newDescription === product.description &&
+      newPrice === product.price &&
+      newDiscountPrice === product.discountPrice &&
+      newStock === product.stock &&
+      newSku === product.sku &&
+      newBrand === product.brand &&
+      newStatus === product.status &&
+      newIsFeatured === product.isFeatured &&
+      newCategoryId === product.categoryId;
+
+    if (noChanges) {
+      throw new ConflictException('No changes detected');
     }
   }
 
@@ -291,6 +326,34 @@ export class ProductsService {
         },
       ]),
     );
+  }
+
+  private async getProductForUpdate(
+    id: string,
+  ): Promise<ProductUpdateSnapshot> {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        discountPrice: true,
+        stock: true,
+        sku: true,
+        brand: true,
+        status: true,
+        isFeatured: true,
+        categoryId: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return product;
   }
 
   async create(body: CreateProductDto) {
@@ -524,24 +587,25 @@ export class ProductsService {
     id: string,
     body: UpdateProductDto,
   ): Promise<ProductWithSignedUrls> {
-    await this.ensureProductExists(id);
+    const product = await this.getProductForUpdate(id);
 
-    if (body.categoryId) {
+    this.ensureProductHasChanges(product, body);
+
+    if (body.categoryId && body.categoryId !== product.categoryId) {
       await this.ensureCategoryExists(body.categoryId);
     }
 
-    const slug = body.name ? createSlug(body.name) : undefined;
+    const slug = body.name ? createSlug(body.name) : product.slug;
 
-    if (slug || body.sku) {
+    const sku = body.sku ?? product.sku;
+
+    if (slug !== product.slug || sku !== product.sku) {
       const existingProduct = await this.prisma.product.findFirst({
         where: {
-          NOT: {
-            id,
+          id: {
+            not: product.id,
           },
-          OR: [
-            ...(slug ? [{ slug }] : []),
-            ...(body.sku ? [{ sku: body.sku }] : []),
-          ],
+          OR: [{ slug }, { sku }],
         },
         select: {
           id: true,
@@ -557,11 +621,11 @@ export class ProductsService {
 
     const updatedProduct = await this.prisma.product.update({
       where: {
-        id,
+        id: product.id,
       },
       data: {
         name: body.name,
-        slug,
+        slug: body.name ? slug : undefined,
         description: body.description,
         price: body.price,
         discountPrice: body.discountPrice,
