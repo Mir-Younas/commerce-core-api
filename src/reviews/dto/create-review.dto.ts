@@ -7,7 +7,7 @@ import {
   Min,
 } from 'class-validator';
 
-import { ToTrim } from 'src/common/decorators/to-trim.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export class CreateReviewDto {
   @IsInt()

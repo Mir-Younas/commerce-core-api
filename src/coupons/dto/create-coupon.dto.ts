@@ -11,7 +11,7 @@ import {
 
 import { CouponDiscountType } from '@prisma/client';
 
-import { ToTrim } from 'src/common/decorators/to-trim.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export class CreateCouponDto {
   @IsString()

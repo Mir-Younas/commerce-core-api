@@ -6,9 +6,9 @@ import { PaymentsModule } from 'src/payments/payments.module';
 import { CouponsModule } from 'src/coupons/coupons.module';
 
 @Module({
-  imports:[EmailModule, PaymentsModule, CouponsModule],
+  imports: [EmailModule, PaymentsModule, CouponsModule],
   controllers: [OrdersController],
   providers: [OrdersService],
-  exports:[OrdersService]
+  exports: [OrdersService],
 })
 export class OrdersModule {}

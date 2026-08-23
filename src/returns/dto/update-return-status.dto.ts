@@ -1,13 +1,8 @@
-import {
-  IsEnum,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { ReturnStatus } from '@prisma/client';
 
-import { ToTrim } from 'src/common/decorators/to-trim.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export class UpdateReturnStatusDto {
   @IsEnum(ReturnStatus)

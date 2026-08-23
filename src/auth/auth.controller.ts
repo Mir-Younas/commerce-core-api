@@ -28,6 +28,7 @@ import {
 } from './utils/auth-cookies';
 import type { AuthRequest, GoogleAuthRequest } from './auth.types';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { getStringCookie } from './utils/get-string-cookie';
 
 @Controller('auth')
 export class AuthController {
@@ -66,9 +67,10 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    const refreshToken = getStringCookie(req, REFRESH_TOKEN_COOKIE_NAME);
 
     await this.authService.logout(refreshToken);
+
     clearAuthCookies(res);
 
     return {
@@ -82,7 +84,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    const refreshToken = getStringCookie(req, REFRESH_TOKEN_COOKIE_NAME);
 
     const { accessToken } = await this.authService.refresh(refreshToken);
 
@@ -162,7 +164,6 @@ export class AuthController {
     @Req() req: GoogleAuthRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-
     const { accessToken, refreshToken } = await this.authService.googleLogin(
       req.user,
     );
@@ -172,8 +173,5 @@ export class AuthController {
     const clientUrl = this.configService.getOrThrow<string>('CLIENT_URL');
 
     return res.redirect(clientUrl);
-    // return {
-    //   message: 'Google login successful',
-    // };
   }
 }

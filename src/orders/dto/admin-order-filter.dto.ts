@@ -1,5 +1,5 @@
 import { OrderStatus } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -9,7 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ToTrim } from 'src/common/decorators/to-trim.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export enum AdminOrderSort {
   NEWEST = 'newest',

@@ -1,4 +1,3 @@
-import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
@@ -7,29 +6,24 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  NormalizeEmail,
+  ToTrim,
+} from 'src/common/decorators/string-transform.decorator';
 
 export class SignUpDto {
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @ToTrim()
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(50)
   name!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toLowerCase()
-      : value,
-  )
+  @NormalizeEmail()
   @IsEmail()
   @MaxLength(255)
   email!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(72)

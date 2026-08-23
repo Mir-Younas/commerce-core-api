@@ -66,11 +66,12 @@ export class CategoriesService {
 
   async update(id: string, body: UpdateCategoryDto) {
     const category = await this.prisma.category.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
       select: {
         id: true,
+        name: true,
+        slug: true,
+        description: true,
       },
     });
 
@@ -78,19 +79,24 @@ export class CategoriesService {
       throw new NotFoundException('Category not found');
     }
 
-    const slug = body.name ? createSlug(body.name) : undefined;
+    const slug = body.name ? createSlug(body.name) : category.slug;
 
-    if (slug) {
-      const existingCategory = await this.prisma.category.findFirst({
-        where: {
-          slug,
-          NOT: {
-            id: category.id,
-          },
-        },
-        select: {
-          id: true,
-        },
+    const newName = body.name ?? category.name;
+    const newDescription = body.description ?? category.description;
+
+    const noChanges =
+      newName === category.name &&
+      slug === category.slug &&
+      newDescription === category.description;
+
+    if (noChanges) {
+      throw new ConflictException('No changes detected');
+    }
+
+    if (slug !== category.slug) {
+      const existingCategory = await this.prisma.category.findUnique({
+        where: { slug },
+        select: { id: true },
       });
 
       if (existingCategory) {
@@ -98,18 +104,14 @@ export class CategoriesService {
       }
     }
 
-    const updatedCategory = await this.prisma.category.update({
-      where: {
-        id: category.id,
-      },
+    return this.prisma.category.update({
+      where: { id },
       data: {
-        name: body.name,
+        name: newName,
         slug,
-        description: body.description,
+        description: newDescription,
       },
     });
-
-    return updatedCategory;
   }
 
   async delete(id: string): Promise<void> {
@@ -142,35 +144,6 @@ export class CategoriesService {
       where: {
         id: category.id,
       },
-    });
-  }
-
-  async forceDelete(id: string): Promise<void> {
-    const category = await this.prisma.category.findUnique({
-      where: {
-        id,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.product.deleteMany({
-        where: {
-          categoryId: category.id,
-        },
-      });
-
-      await tx.category.delete({
-        where: {
-          id: category.id,
-        },
-      });
     });
   }
 }

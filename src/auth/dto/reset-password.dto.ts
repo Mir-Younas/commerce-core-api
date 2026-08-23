@@ -1,4 +1,3 @@
-import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -6,17 +5,14 @@ import {
   MaxLength,
 } from 'class-validator';
 
+import { ToTrim } from '../../common/decorators/string-transform.decorator';
+
 export class ResetPasswordDto {
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @ToTrim()
   @IsString()
   @IsNotEmpty()
   token!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(72)

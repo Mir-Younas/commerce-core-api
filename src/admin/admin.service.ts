@@ -10,7 +10,10 @@ import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import type { AuthRequest } from 'src/auth/auth.types';
 import { Prisma, Role, UserStatus } from '@prisma/client';
 import { AdminUserFilterDto, AdminUserSort } from './dto/admin-user-filter.dto';
-import { buildPaginationMeta, getPaginationParams } from 'src/common/utils/pagination.util';
+import {
+  buildPaginationMeta,
+  getPaginationParams,
+} from 'src/common/utils/pagination.util';
 
 @Injectable()
 export class AdminService {
@@ -70,7 +73,7 @@ export class AdminService {
       };
     }
 
-    const {page, limit, skip} = getPaginationParams(query.page, query.limit)
+    const { page, limit, skip } = getPaginationParams(query.page, query.limit);
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
@@ -97,7 +100,7 @@ export class AdminService {
 
     return {
       users,
-      meta: buildPaginationMeta(total, page, limit)
+      meta: buildPaginationMeta(total, page, limit),
     };
   }
 

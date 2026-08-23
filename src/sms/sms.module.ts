@@ -3,8 +3,6 @@ import { SmsService } from './sms.service';
 
 @Module({
   providers: [SmsService],
-  exports: [
-    SmsService,
-  ],
+  exports: [SmsService],
 })
 export class SmsModule {}

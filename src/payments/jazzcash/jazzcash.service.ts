@@ -17,48 +17,36 @@ import { CreatePaymentRequestInput } from '../types/payements.types';
 
 @Injectable()
 export class JazzcashService {
-  constructor(
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   createJazzCashPaymentRequest(
     params: CreatePaymentRequestInput,
   ): JazzCashPaymentResult {
-    const merchantId =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_MERCHANT_ID',
-      );
+    const merchantId = this.configService.getOrThrow<string>(
+      'JAZZCASH_MERCHANT_ID',
+    );
 
-    const password =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_PASSWORD',
-      );
+    const password = this.configService.getOrThrow<string>('JAZZCASH_PASSWORD');
 
-    const integritySalt =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_INTEGRITY_SALT',
-      );
+    const integritySalt = this.configService.getOrThrow<string>(
+      'JAZZCASH_INTEGRITY_SALT',
+    );
 
-    const returnUrl =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_RETURN_URL',
-      );
+    const returnUrl = this.configService.getOrThrow<string>(
+      'JAZZCASH_RETURN_URL',
+    );
 
-    const paymentUrl =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_PAYMENT_URL',
-      );
+    const paymentUrl = this.configService.getOrThrow<string>(
+      'JAZZCASH_PAYMENT_URL',
+    );
 
     const now = new Date();
 
-    const expiryDate = new Date(
-      now.getTime() + 30 * 60 * 1000,
-    );
+    const expiryDate = new Date(now.getTime() + 30 * 60 * 1000);
 
     const txnDateTime = this.formatJazzCashDate(now);
 
-    const txnExpiryDateTime =
-      this.formatJazzCashDate(expiryDate);
+    const txnExpiryDateTime = this.formatJazzCashDate(expiryDate);
 
     const txnRefNo = `T${txnDateTime}`;
 
@@ -99,11 +87,10 @@ export class JazzcashService {
       ppmpf_1: params.paymentId,
     };
 
-    const pp_SecureHash =
-      createJazzCashSecureHash(
-        requestWithoutHash,
-        integritySalt,
-      );
+    const pp_SecureHash = createJazzCashSecureHash(
+      requestWithoutHash,
+      integritySalt,
+    );
 
     const fields: JazzCashPaymentFields = {
       ...requestWithoutHash,
@@ -117,29 +104,21 @@ export class JazzcashService {
   }
 
   verifyCallback(body: JazzCashCallback) {
-    const integritySalt =
-      this.configService.getOrThrow<string>(
-        'JAZZCASH_INTEGRITY_SALT',
-      );
-
-    const validHash = verifyJazzCashSecureHash(
-      body,
-      integritySalt,
+    const integritySalt = this.configService.getOrThrow<string>(
+      'JAZZCASH_INTEGRITY_SALT',
     );
 
+    const validHash = verifyJazzCashSecureHash(body, integritySalt);
+
     if (!validHash) {
-      throw new UnauthorizedException(
-        'Invalid JazzCash secure hash',
-      );
+      throw new UnauthorizedException('Invalid JazzCash secure hash');
     }
 
     const responseCode = body.pp_ResponseCode;
     const paymentId = body.ppmpf_1;
     const txnRefNo = body.pp_TxnRefNo;
 
-    const providerTransactionId =
-      body.pp_RetreivalReferenceNo ??
-      txnRefNo;
+    const providerTransactionId = body.pp_RetreivalReferenceNo ?? txnRefNo;
 
     if (!paymentId) {
       throw new BadRequestException(
@@ -153,35 +132,22 @@ export class JazzcashService {
       paymentId,
       txnRefNo,
       providerTransactionId,
-      responseMessage:
-        body.pp_ResponseMessage,
+      responseMessage: body.pp_ResponseMessage,
     };
   }
 
   private formatJazzCashDate(date: Date): string {
-    const year = date
-      .getFullYear()
-      .toString();
+    const year = date.getFullYear().toString();
 
-    const month = String(
-      date.getMonth() + 1,
-    ).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
 
-    const day = String(
-      date.getDate(),
-    ).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
 
-    const hours = String(
-      date.getHours(),
-    ).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
 
-    const minutes = String(
-      date.getMinutes(),
-    ).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
 
-    const seconds = String(
-      date.getSeconds(),
-    ).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
 
     return `${year}${month}${day}${hours}${minutes}${seconds}`;
   }

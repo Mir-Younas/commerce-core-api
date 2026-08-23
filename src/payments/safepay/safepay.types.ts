@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 import type { CreatePaymentRequestInput } from '../types/payements.types';
 
-export type CreateSafepayPaymentRequestInput =
-  Omit<CreatePaymentRequestInput, 'paymentId'>;
+export type CreateSafepayPaymentRequestInput = Omit<
+  CreatePaymentRequestInput,
+  'paymentId'
+>;
 
-export type SafepayEnvironment =
-  | 'sandbox'
-  | 'production';
+export type SafepayEnvironment = 'sandbox' | 'production';
 
 export type SafepayPaymentResult = {
   checkoutUrl: string;
@@ -58,5 +58,22 @@ export const safepayWebhookSchema = z.object({
     .optional(),
 });
 
-export type SafepayWebhookEvent =
-  z.infer<typeof safepayWebhookSchema>;
+export type SafepayWebhookEvent = z.infer<typeof safepayWebhookSchema>;
+
+export const safepayPaymentSessionSchema = z.object({
+  data: z.object({
+    tracker: z.object({
+      token: z.string(),
+    }),
+  }),
+});
+
+export type SafepayPaymentSessionResponse = z.infer<
+  typeof safepayPaymentSessionSchema
+>;
+
+export const safepayPassportSchema = z.object({
+  data: z.string(),
+});
+
+export type SafepayPassportResponse = z.infer<typeof safepayPassportSchema>;

@@ -122,9 +122,7 @@ export class ReviewsService {
           userId,
 
           status: {
-            in: [
-              OrderStatus.DELIVERED,
-            ],
+            in: [OrderStatus.DELIVERED],
           },
         },
       },

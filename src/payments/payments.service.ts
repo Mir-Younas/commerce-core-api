@@ -8,7 +8,6 @@ import {
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
-  Prisma,
 } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -600,11 +599,7 @@ export class PaymentsService {
         });
 
       case PaymentProvider.JAZZCASH:
-        // return this.jazzcashService.refundPaymentRequestForJazzCash({
-        //   paymentId: payment.id,
-        //   transactionId: payment.transactionId,
-        //   amount: payment.amount,
-        // });
+        throw new BadRequestException('JazzCash refunds are not supported yet');
 
       default:
         throw new BadRequestException('Unsupported payment provider');

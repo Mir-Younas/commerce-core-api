@@ -14,9 +14,7 @@ import { SafepayService } from './safepay.service';
 
 @Controller('payments/safepay')
 export class SafepayController {
-  constructor(
-    private readonly safepayService: SafepayService,
-  ) {}
+  constructor(private readonly safepayService: SafepayService) {}
 
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
@@ -27,10 +25,7 @@ export class SafepayController {
     @Headers('x-sfpy-signature')
     signature?: string,
   ) {
-    await this.safepayService.handleWebhook(
-      request.rawBody,
-      signature,
-    );
+    await this.safepayService.handleWebhook(request.rawBody, signature);
 
     return {
       received: true,

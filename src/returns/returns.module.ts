@@ -7,6 +7,6 @@ import { PaymentsModule } from 'src/payments/payments.module';
 @Module({
   imports: [PaymentsModule],
   providers: [ReturnsService],
-  controllers: [UserReturnsController, AdminReturnsController]
+  controllers: [UserReturnsController, AdminReturnsController],
 })
 export class ReturnsModule {}

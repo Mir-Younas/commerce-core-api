@@ -21,7 +21,9 @@ import { firstValueFrom } from 'rxjs';
 import {
   CreateSafepayPaymentRequestInput,
   SafepayEnvironment,
+  safepayPassportSchema,
   SafepayPaymentResult,
+  safepayPaymentSessionSchema,
   SafepayWebhookEvent,
   safepayWebhookSchema,
 } from './safepay.types';
@@ -73,33 +75,54 @@ export class SafepayService {
     const amount = params.amount * 100;
 
     try {
-      const paymentSession = await this.safepay.payments.session.setup({
-        merchant_api_key: apiKey,
-        intent: 'CYBERSOURCE',
-        mode: 'payment',
-        entry_mode: 'raw',
-        currency: 'PKR',
-        amount,
-        metadata: {
-          order_id: params.orderId,
-        },
+      const paymentSessionRaw: unknown =
+        await this.safepay.payments.session.setup({
+          merchant_api_key: apiKey,
+          intent: 'CYBERSOURCE',
+          mode: 'payment',
+          entry_mode: 'raw',
+          currency: 'PKR',
+          amount,
+          metadata: {
+            order_id: params.orderId,
+          },
+          include_fees: false,
+        });
 
-        include_fees: false,
-      });
+      const paymentSessionResult =
+        safepayPaymentSessionSchema.safeParse(paymentSessionRaw);
 
-      const tracker = paymentSession?.data?.tracker?.token;
+      if (!paymentSessionResult.success) {
+        this.logger.error(
+          `Invalid Safepay payment session response: ${paymentSessionResult.error.message}`,
+        );
 
-      if (!tracker) {
-        throw new Error('Safepay did not return payment tracker');
+        throw new BadGatewayException('Invalid response received from Safepay');
       }
 
-      const authentication = await this.safepay.client.passport.create();
+      const paymentSession = paymentSessionResult.data;
 
-      const authenticationToken = authentication?.data;
+      const tracker = paymentSession.data.tracker.token;
 
-      if (!authenticationToken) {
-        throw new Error('Safepay did not return authentication token');
+      const authenticationRaw: unknown =
+        await this.safepay.client.passport.create();
+
+      const authenticationResult =
+        safepayPassportSchema.safeParse(authenticationRaw);
+
+      if (!authenticationResult.success) {
+        this.logger.error(
+          `Invalid Safepay authentication response: ${authenticationResult.error.message}`,
+        );
+
+        throw new BadGatewayException(
+          'Invalid authentication response received from Safepay',
+        );
       }
+
+      const authentication = authenticationResult.data;
+
+      const authenticationToken = authentication.data;
 
       const checkoutUrl = this.safepay.checkout.createCheckoutUrl({
         env: this.environment,
@@ -111,7 +134,7 @@ export class SafepayService {
       });
 
       if (!checkoutUrl) {
-        throw new Error('Safepay checkout URL was not generated');
+        throw new BadGatewayException('Safepay checkout URL was not generated');
       }
 
       return {
@@ -127,6 +150,10 @@ export class SafepayService {
         `Unable to create Safepay payment request: ${message}`,
         stack,
       );
+
+      if (error instanceof BadGatewayException) {
+        throw error;
+      }
 
       throw new BadGatewayException('Unable to process payment at this time');
     }
@@ -493,74 +520,9 @@ export class SafepayService {
     }
   }
 
-  // async refundPaymentRequestForSafePay(params: RefundPaymentRequestInput) {
-  //   if (!params.transactionId) {
-  //     throw new BadRequestException(
-  //       'Safepay transaction ID is required for refund',
-  //     );
-  //   }
-
-  //   if (params.amount <= 0) {
-  //     throw new BadRequestException('Refund amount must be greater than zero');
-  //   }
-
-  //   const serverApiKey = this.configService.getOrThrow<string>(
-  //     'SAFEPAY_API_KEY',
-  //   );
-
-  //   const amount = params.amount * 100;
-
-  //   const url = `${this.host}/order/payments/v3/${params.transactionId}/refund`;
-
-  //   try {
-  //     const response = await fetch(url, {
-  //       method: 'POST',
-
-  //       headers: {
-  //         Authorization: `Bearer ${serverApiKey}`,
-
-  //         'Content-Type': 'application/json',
-  //       },
-
-  //       body: JSON.stringify({
-  //         currency: 'PKR',
-  //         amount,
-  //       }),
-  //     });
-
-  //     const result: unknown = await response.json();
-
-  //     if (!response.ok) {
-  //       this.logger.error(
-  //         `Safepay refund request failed: ${JSON.stringify(result)}`,
-  //       );
-
-  //       throw new BadGatewayException('Safepay refund request failed');
-  //     }
-
-  //     return result;
-  //   } catch (error: unknown) {
-  //     if (error instanceof BadGatewayException) {
-  //       throw error;
-  //     }
-
-  //     const message =
-  //       error instanceof Error ? error.message : 'Unknown Safepay refund error';
-
-  //     const stack = error instanceof Error ? error.stack : undefined;
-
-  //     this.logger.error(
-  //       `Unable to create Safepay refund request: ${message}`,
-  //       stack,
-  //     );
-
-  //     throw new BadGatewayException(
-  //       'Unable to process Safepay refund at this time',
-  //     );
-  //   }
-  // }
-
-  async refundPaymentRequestForSafePay(params: RefundPaymentRequestInput) {
+  async refundPaymentRequestForSafePay(
+    params: RefundPaymentRequestInput,
+  ): Promise<unknown> {
     if (!params.transactionId) {
       throw new BadRequestException(
         'Safepay transaction ID is required for refund',
@@ -571,8 +533,6 @@ export class SafepayService {
       throw new BadRequestException('Refund amount must be greater than zero');
     }
 
-    const secretKey =
-      this.configService.getOrThrow<string>('SAFEPAY_SECRET_KEY');
     const apiKey = this.configService.getOrThrow<string>('SAFEPAY_API_KEY');
 
     const amount = params.amount * 100;
@@ -581,7 +541,7 @@ export class SafepayService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post(
+        this.httpService.post<unknown>(
           url,
           {
             currency: 'PKR',

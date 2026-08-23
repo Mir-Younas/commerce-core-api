@@ -61,10 +61,7 @@ export class CategoriesController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdateCategoryDto,
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateCategoryDto) {
     const category = await this.categoriesService.update(id, body);
 
     return {
@@ -76,24 +73,12 @@ export class CategoriesController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN)
   async delete(@Param('id') id: string) {
     await this.categoriesService.delete(id);
 
     return {
       message: 'Category deleted successfully',
-    };
-  }
-
-  @Delete(':id/force')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SUPER_ADMIN)
-  async forceDelete(@Param('id') id: string) {
-    await this.categoriesService.forceDelete(id);
-
-    return {
-      message: 'Category and its products deleted successfully',
     };
   }
 }

@@ -237,10 +237,7 @@ export class ReturnsService {
       throw new NotFoundException('Return request not found');
     }
 
-    this.validateStatusTransition(
-       returnRequest.status,
-      body.status,
-    );
+    this.validateStatusTransition(returnRequest.status, body.status);
 
     const updatedReturn = await this.prisma.returnRequest.update({
       where: {

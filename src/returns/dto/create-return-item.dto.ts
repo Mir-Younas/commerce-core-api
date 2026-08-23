@@ -10,7 +10,7 @@ import {
 
 import { ReturnReason } from '@prisma/client';
 
-import { ToTrim } from 'src/common/decorators/to-trim.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export class CreateReturnItemDto {
   @IsUUID()

@@ -1,11 +1,6 @@
 import { Type } from 'class-transformer';
 
-import {
-  ArrayMinSize,
-  IsArray,
-  IsUUID,
-  ValidateNested,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsUUID, ValidateNested } from 'class-validator';
 
 import { CreateReturnItemDto } from './create-return-item.dto';
 

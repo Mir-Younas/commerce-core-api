@@ -11,31 +11,22 @@ import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../auth.types';
 import { ACCESS_TOKEN_COOKIE_NAME } from '../utils/auth-cookies';
+import { getStringCookie } from '../utils/get-string-cookie';
 
-function extractAccessTokenFromCookie(
-  req: Request,
-): string | null {
-  return req?.cookies?.[ACCESS_TOKEN_COOKIE_NAME] ?? null;
+function extractAccessTokenFromCookie(req: Request): string | null {
+  return getStringCookie(req, ACCESS_TOKEN_COOKIE_NAME) || null;
 }
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(
-  Strategy,
-  'jwt',
-) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        extractAccessTokenFromCookie,
-      ]),
+      jwtFromRequest: ExtractJwt.fromExtractors([extractAccessTokenFromCookie]),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.getOrThrow<string>(
-          'JWT_ACCESS_SECRET',
-        ),
+      secretOrKey: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
     });
   }
 
@@ -61,9 +52,7 @@ export class JwtStrategy extends PassportStrategy(
     }
 
     if (user.status === UserStatus.BLOCKED) {
-      throw new ForbiddenException(
-        'Your account has been blocked',
-      );
+      throw new ForbiddenException('Your account has been blocked');
     }
 
     return user;

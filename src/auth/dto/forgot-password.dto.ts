@@ -1,12 +1,8 @@
-import { Transform } from 'class-transformer';
 import { IsEmail, MaxLength } from 'class-validator';
+import { NormalizeEmail } from '../../common/decorators/string-transform.decorator';
 
 export class ForgotPasswordDto {
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toLowerCase()
-      : value,
-  )
+  @NormalizeEmail()
   @IsEmail()
   @MaxLength(255)
   email!: string;

@@ -6,6 +6,6 @@ import { S3Module } from 'src/common/s3/s3.module';
 @Module({
   imports: [S3Module],
   controllers: [CartController],
-  providers: [CartService]
+  providers: [CartService],
 })
 export class CartModule {}

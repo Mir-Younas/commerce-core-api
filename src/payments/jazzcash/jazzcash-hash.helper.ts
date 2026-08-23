@@ -1,9 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
-type JazzCashHashFields = Record<
-  string,
-  string | number | null | undefined
->;
+type JazzCashHashFields = Record<string, string | number | null | undefined>;
 
 export function createJazzCashSecureHash(
   fields: JazzCashHashFields,
@@ -21,10 +18,7 @@ export function createJazzCashSecureHash(
     .sort()
     .map((key) => String(fields[key]));
 
-  const hashInput = [
-    integritySalt,
-    ...sortedValues,
-  ].join('&');
+  const hashInput = [integritySalt, ...sortedValues].join('&');
 
   return createHmac('sha256', integritySalt)
     .update(hashInput, 'utf8')
@@ -37,34 +31,19 @@ export function verifyJazzCashSecureHash(
 ): boolean {
   const receivedHash = fields.pp_SecureHash;
 
-  if (
-    typeof receivedHash !== 'string' ||
-    !receivedHash
-  ) {
+  if (typeof receivedHash !== 'string' || !receivedHash) {
     return false;
   }
 
-  const expectedHash = createJazzCashSecureHash(
-    fields,
-    integritySalt,
-  );
+  const expectedHash = createJazzCashSecureHash(fields, integritySalt);
 
-  const receivedBuffer = Buffer.from(
-    receivedHash.toLowerCase(),
-    'utf8',
-  );
+  const receivedBuffer = Buffer.from(receivedHash.toLowerCase(), 'utf8');
 
-  const expectedBuffer = Buffer.from(
-    expectedHash.toLowerCase(),
-    'utf8',
-  );
+  const expectedBuffer = Buffer.from(expectedHash.toLowerCase(), 'utf8');
 
   if (receivedBuffer.length !== expectedBuffer.length) {
     return false;
   }
 
-  return timingSafeEqual(
-    receivedBuffer,
-    expectedBuffer,
-  );
+  return timingSafeEqual(receivedBuffer, expectedBuffer);
 }

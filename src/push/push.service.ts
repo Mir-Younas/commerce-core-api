@@ -1,49 +1,34 @@
-import {
-  BadGatewayException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 
 import { ConfigService } from '@nestjs/config';
 
-import {
-  cert,
-  getApps,
-  initializeApp,
-} from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 
 import type { App } from 'firebase-admin/app';
 
-import {
-  getMessaging,
-} from 'firebase-admin/messaging';
+import { getMessaging } from 'firebase-admin/messaging';
 
 @Injectable()
 export class PushService {
-  private readonly logger =
-    new Logger(PushService.name);
+  private readonly logger = new Logger(PushService.name);
 
-  private readonly firebaseApp: App;
+  private readonly firebaseApp?: App;
 
-  constructor(
-    private readonly configService: ConfigService,
-  ) {
-    const projectId =
-      this.configService.getOrThrow<string>(
-        'FIREBASE_PROJECT_ID',
-      );
+  constructor(private readonly configService: ConfigService) {
+    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
 
-    const clientEmail =
-      this.configService.getOrThrow<string>(
-        'FIREBASE_CLIENT_EMAIL',
-      );
+    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
 
-    const privateKey =
-      this.configService
-        .getOrThrow<string>(
-          'FIREBASE_PRIVATE_KEY',
-        )
-        .replace(/\\n/g, '\n');
+    const privateKeyRaw = this.configService.get<string>(
+      'FIREBASE_PRIVATE_KEY',
+    );
+
+    if (!projectId || !clientEmail || !privateKeyRaw) {
+      this.logger.warn('Firebase push notifications are not configured');
+
+      return;
+    }
+    const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
 
     this.firebaseApp =
       getApps().length > 0
@@ -63,9 +48,7 @@ export class PushService {
     body: string,
   ): Promise<void> {
     try {
-      await getMessaging(
-        this.firebaseApp,
-      ).send({
+      await getMessaging(this.firebaseApp).send({
         token,
 
         notification: {
@@ -79,15 +62,9 @@ export class PushService {
           ? error.message
           : 'Unknown push notification error';
 
-      const stack =
-        error instanceof Error
-          ? error.stack
-          : undefined;
+      const stack = error instanceof Error ? error.stack : undefined;
 
-      this.logger.error(
-        `Unable to send push notification: ${message}`,
-        stack,
-      );
+      this.logger.error(`Unable to send push notification: ${message}`, stack);
 
       throw new BadGatewayException(
         'Unable to send push notification at this time',
@@ -95,10 +72,7 @@ export class PushService {
     }
   }
 
-  async sendOrderConfirmedPush(
-    token: string,
-    orderId: string,
-  ): Promise<void> {
+  async sendOrderConfirmedPush(token: string, orderId: string): Promise<void> {
     await this.sendPush(
       token,
       'Order Confirmed',
@@ -111,10 +85,9 @@ export class PushService {
     orderId: string,
     trackingNumber?: string | null,
   ): Promise<void> {
-    const trackingMessage =
-      trackingNumber
-        ? ` Tracking number: ${trackingNumber}.`
-        : '';
+    const trackingMessage = trackingNumber
+      ? ` Tracking number: ${trackingNumber}.`
+      : '';
 
     await this.sendPush(
       token,
@@ -123,10 +96,7 @@ export class PushService {
     );
   }
 
-  async sendOrderDeliveredPush(
-    token: string,
-    orderId: string,
-  ): Promise<void> {
+  async sendOrderDeliveredPush(token: string, orderId: string): Promise<void> {
     await this.sendPush(
       token,
       'Order Delivered',
@@ -150,10 +120,7 @@ export class PushService {
     returnRequestId: string,
     adminNote?: string | null,
   ): Promise<void> {
-    const reason =
-      adminNote
-        ? ` Reason: ${adminNote}`
-        : '';
+    const reason = adminNote ? ` Reason: ${adminNote}` : '';
 
     await this.sendPush(
       token,

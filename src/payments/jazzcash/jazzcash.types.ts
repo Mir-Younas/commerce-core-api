@@ -1,8 +1,7 @@
 export type JazzCashPaymentResult = {
   paymentUrl: string;
   fields: JazzCashPaymentFields;
-}
-
+};
 
 export type JazzCashPaymentFields = {
   pp_Version: string;

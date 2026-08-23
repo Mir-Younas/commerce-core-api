@@ -1,10 +1,8 @@
-import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString } from 'class-validator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export class VerifyEmailDto {
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @ToTrim()
   @IsString()
   @IsNotEmpty()
   token!: string;

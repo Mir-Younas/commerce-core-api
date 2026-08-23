@@ -7,18 +7,10 @@ import { PushModule } from '../push/push.module';
 import { NotificationsService } from './notifications.service';
 
 @Module({
-  imports: [
-    EmailModule,
-    SmsModule,
-    PushModule,
-  ],
+  imports: [EmailModule, SmsModule, PushModule],
 
-  providers: [
-    NotificationsService,
-  ],
+  providers: [NotificationsService],
 
-  exports: [
-    NotificationsService,
-  ],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}

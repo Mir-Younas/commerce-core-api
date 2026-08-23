@@ -1,5 +1,5 @@
 import { Role, UserStatus } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -10,6 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { ToBoolean } from '../../common/decorators/to-boolean.decorator';
+import { ToTrim } from 'src/common/decorators/string-transform.decorator';
 
 export enum AdminUserSort {
   NEWEST = 'newest',
@@ -21,9 +22,7 @@ export enum AdminUserSort {
 export class AdminUserFilterDto {
   @IsOptional()
   @IsString()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @ToTrim()
   search?: string;
 
   @IsOptional()

@@ -27,6 +27,5 @@ export type GoogleUser = {
 };
 
 export interface GoogleAuthRequest extends Request {
-  user: GoogleUser
-  
+  user: GoogleUser;
 }
