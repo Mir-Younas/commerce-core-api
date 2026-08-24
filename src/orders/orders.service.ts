@@ -13,7 +13,6 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { EmailService } from '../email/email.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import {
   AdminOrderFilterDto,
@@ -29,6 +28,7 @@ import { PaymentsService } from 'src/payments/payments.service';
 import { updateProductStock } from 'src/products/helpers/product-stock.helper';
 import { CouponsService } from 'src/coupons/coupons.service';
 import { CouponCheckoutResult } from 'src/coupons/coupons.type';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 type CartWithItems = Prisma.CartGetPayload<{
   include: {
@@ -56,9 +56,9 @@ export class OrdersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailService: EmailService,
     private readonly paymentsService: PaymentsService,
     private readonly couponsService: CouponsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async findExistingAddress(userId: string, addressId: string) {
@@ -126,7 +126,7 @@ export class OrdersService {
     }, 0);
   }
 
-  private async sendOrderPlacedEmailSafely(
+  private async sendOrderConfirmedNotificationSafely(
     userId: string,
     order: Awaited<ReturnType<OrdersService['findOne']>>,
   ): Promise<void> {
@@ -138,6 +138,7 @@ export class OrdersService {
         select: {
           name: true,
           email: true,
+          pushToken: true,
         },
       });
 
@@ -145,20 +146,22 @@ export class OrdersService {
         return;
       }
 
-      await this.emailService.sendOrderPlacedEmail({
+      await this.notificationsService.sendOrderConfirmedNotification({
         to: user.email,
         name: user.name,
+        phone: order.phone,
+        pushToken: user.pushToken,
         order,
       });
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown email sending error';
+      const message =
+        error instanceof Error ? error.message : 'Unknown notification error';
 
-      const errorStack = error instanceof Error ? error.stack : undefined;
+      const stack = error instanceof Error ? error.stack : undefined;
 
       this.logger.error(
-        `Failed to send order placed email. UserId: ${userId}, OrderId: ${order.id}, Error: ${errorMessage}`,
-        errorStack,
+        `Failed to send order confirmed notifications. UserId: ${userId}, OrderId: ${order.id}, Error: ${message}`,
+        stack,
       );
     }
   }
@@ -301,7 +304,7 @@ export class OrdersService {
     if (result.payment.method === PaymentMethod.CASH_ON_DELIVERY) {
       const order = await this.findOne(userId, result.orderId);
 
-      await this.sendOrderPlacedEmailSafely(userId, order);
+      await this.sendOrderConfirmedNotificationSafely(userId, order);
 
       return {
         order,
