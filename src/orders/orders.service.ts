@@ -166,56 +166,58 @@ export class OrdersService {
   async checkout(userId: string, body: CreateOrderDto) {
     const address = await this.findExistingAddress(userId, body.addressId);
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const cart = await tx.cart.findUnique({
-        where: {
-          userId,
-        },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true,
-                  price: true,
-                  discountPrice: true,
-                  stock: true,
-                  status: true,
-                },
+    const cart = await this.prisma.cart.findUnique({
+      where: {
+        userId,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                price: true,
+                discountPrice: true,
+                stock: true,
+                status: true,
               },
             },
           },
         },
+      },
+    });
+
+    if (!cart || cart.items.length === 0) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    this.validateCartItemsForCheckout(cart);
+
+    const subtotal = this.calculateSubtotal(cart);
+
+    let couponResult: CouponCheckoutResult | null = null;
+
+    if (body.couponCode) {
+      couponResult = await this.couponsService.validateForCheckout({
+        code: body.couponCode,
+        subtotal,
       });
+    }
 
-      if (!cart || cart.items.length === 0) {
-        throw new BadRequestException('Cart is empty');
-      }
+    const discountAmount = couponResult?.discountAmount ?? 0;
 
-      this.validateCartItemsForCheckout(cart);
+    const deliveryFee = 0;
 
-      const subtotal = this.calculateSubtotal(cart);
+    const total = subtotal - discountAmount + deliveryFee;
 
-      let couponResult: CouponCheckoutResult | null = null;
+    const orderStatus =
+      body.paymentMethod === PaymentMethod.ONLINE
+        ? OrderStatus.PENDING_PAYMENT
+        : OrderStatus.PENDING;
 
-      if (body.couponCode) {
-        couponResult = await this.couponsService.validateForCheckout({
-          code: body.couponCode,
-          subtotal,
-        });
-      }
-
-      const discountAmount = couponResult?.discountAmount ?? 0;
-      const deliveryFee = 0;
-      const total = subtotal - discountAmount + deliveryFee;
-
-      const orderStatus =
-        body.paymentMethod === PaymentMethod.ONLINE
-          ? OrderStatus.PENDING_PAYMENT
-          : OrderStatus.PENDING;
-
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           userId,
@@ -226,6 +228,7 @@ export class OrdersService {
           discountAmount,
           deliveryFee,
           total,
+
           couponId: couponResult?.couponId,
           couponCode: couponResult?.code,
 
@@ -254,7 +257,6 @@ export class OrdersService {
             }),
           },
         },
-
         select: {
           id: true,
         },

@@ -5,9 +5,7 @@ import { JazzcashService } from './jazzcash.service';
 
 @Controller('payments/jazzcash')
 export class JazzcashController {
-  constructor(
-    private readonly jazzcashService: JazzcashService
-  ) {}
+  constructor(private readonly jazzcashService: JazzcashService) {}
 
   @Post('callback')
   async callback(@Body() body: JazzCashCallback, @Res() res: Response) {
