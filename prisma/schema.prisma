@@ -17,6 +17,7 @@ model User {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   googleId            String?                  @unique
+  pushToken           String?
   profileImageKey     String?
   addresses           Address[]
   cart                Cart?

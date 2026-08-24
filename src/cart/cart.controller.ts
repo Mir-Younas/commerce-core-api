@@ -34,24 +34,6 @@ export class CartController {
     };
   }
 
-  @Patch('items/:productId')
-  async updateItemQuantity(
-    @Req() req: AuthRequest,
-    @Param('productId') productId: string,
-    @Body() body: UpdateCartItemQuantityDto,
-  ) {
-    const item = await this.cartService.updateItemQuantity(
-      req.user.id,
-      productId,
-      body.quantity,
-    );
-
-    return {
-      message: 'Cart item quantity updated successfully',
-      item,
-    };
-  }
-
   @Get()
   @HttpCode(HttpStatus.OK)
   async findMyCart(@Req() req: AuthRequest) {
