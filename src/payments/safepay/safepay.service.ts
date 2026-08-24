@@ -74,6 +74,9 @@ export class SafepayService {
 
     const amount = params.amount * 100;
 
+    const frontendErrorMessage =
+      'We could not start payment for your order. Please try again.';
+
     try {
       const paymentSessionRaw: unknown =
         await this.safepay.payments.session.setup({
@@ -94,15 +97,13 @@ export class SafepayService {
 
       if (!paymentSessionResult.success) {
         this.logger.error(
-          `Invalid Safepay payment session response: ${paymentSessionResult.error.message}`,
+          `Invalid Safepay payment session response for order ${params.orderId}: ${paymentSessionResult.error.message}`,
         );
 
-        throw new BadGatewayException('Invalid response received from Safepay');
+        throw new BadGatewayException(frontendErrorMessage);
       }
 
-      const paymentSession = paymentSessionResult.data;
-
-      const tracker = paymentSession.data.tracker.token;
+      const tracker = paymentSessionResult.data.data.tracker.token;
 
       const authenticationRaw: unknown =
         await this.safepay.client.passport.create();
@@ -112,17 +113,13 @@ export class SafepayService {
 
       if (!authenticationResult.success) {
         this.logger.error(
-          `Invalid Safepay authentication response: ${authenticationResult.error.message}`,
+          `Invalid Safepay authentication response for order ${params.orderId}: ${authenticationResult.error.message}`,
         );
 
-        throw new BadGatewayException(
-          'Invalid authentication response received from Safepay',
-        );
+        throw new BadGatewayException(frontendErrorMessage);
       }
 
-      const authentication = authenticationResult.data;
-
-      const authenticationToken = authentication.data;
+      const authenticationToken = authenticationResult.data.data;
 
       const checkoutUrl = this.safepay.checkout.createCheckoutUrl({
         env: this.environment,
@@ -134,28 +131,32 @@ export class SafepayService {
       });
 
       if (!checkoutUrl) {
-        throw new BadGatewayException('Safepay checkout URL was not generated');
+        this.logger.error(
+          `Safepay checkout URL was not generated for order ${params.orderId}`,
+        );
+
+        throw new BadGatewayException(frontendErrorMessage);
       }
 
       return {
         checkoutUrl,
       };
     } catch (error: unknown) {
+      if (error instanceof BadGatewayException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Safepay error';
 
       const stack = error instanceof Error ? error.stack : undefined;
 
       this.logger.error(
-        `Unable to create Safepay payment request: ${message}`,
+        `Unable to create Safepay payment request for order ${params.orderId}: ${message}`,
         stack,
       );
 
-      if (error instanceof BadGatewayException) {
-        throw error;
-      }
-
-      throw new BadGatewayException('Unable to process payment at this time');
+      throw new BadGatewayException(frontendErrorMessage);
     }
   }
 

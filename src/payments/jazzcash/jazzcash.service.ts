@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -14,31 +16,60 @@ import {
   JazzCashPaymentResult,
 } from './jazzcash.types';
 import { CreatePaymentRequestInput } from '../types/payements.types';
+import { updateProductStock } from 'src/products/helpers/product-stock.helper';
+import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentProvider,
+  PaymentStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class JazzcashService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  createJazzCashPaymentRequest(
-    params: CreatePaymentRequestInput,
-  ): JazzCashPaymentResult {
-    const merchantId = this.configService.getOrThrow<string>(
-      'JAZZCASH_MERCHANT_ID',
-    );
+  private getJazzCashConfig() {
+    const merchantId = this.configService.get<string>('JAZZCASH_MERCHANT_ID');
 
-    const password = this.configService.getOrThrow<string>('JAZZCASH_PASSWORD');
+    const password = this.configService.get<string>('JAZZCASH_PASSWORD');
 
-    const integritySalt = this.configService.getOrThrow<string>(
+    const integritySalt = this.configService.get<string>(
       'JAZZCASH_INTEGRITY_SALT',
     );
 
-    const returnUrl = this.configService.getOrThrow<string>(
-      'JAZZCASH_RETURN_URL',
-    );
+    const returnUrl = this.configService.get<string>('JAZZCASH_RETURN_URL');
 
-    const paymentUrl = this.configService.getOrThrow<string>(
-      'JAZZCASH_PAYMENT_URL',
-    );
+    const paymentUrl = this.configService.get<string>('JAZZCASH_PAYMENT_URL');
+
+    if (
+      !merchantId ||
+      !password ||
+      !integritySalt ||
+      !returnUrl ||
+      !paymentUrl
+    ) {
+      throw new ServiceUnavailableException(
+        'JazzCash payment is not configured',
+      );
+    }
+
+    return {
+      merchantId,
+      password,
+      integritySalt,
+      returnUrl,
+      paymentUrl,
+    };
+  }
+  createJazzCashPaymentRequest(
+    params: CreatePaymentRequestInput,
+  ): JazzCashPaymentResult {
+    const { merchantId, password, integritySalt, returnUrl, paymentUrl } =
+      this.getJazzCashConfig();
 
     const now = new Date();
 
@@ -103,6 +134,54 @@ export class JazzcashService {
     };
   }
 
+  private formatJazzCashDate(date: Date): string {
+    const year = date.getFullYear().toString();
+
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+
+    const day = String(date.getDate()).padStart(2, '0');
+
+    const hours = String(date.getHours()).padStart(2, '0');
+
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}${month}${day}${hours}${minutes}${seconds}`;
+  }
+
+  async handleJazzCashCallback(body: JazzCashCallback) {
+    const result = this.verifyCallback(body);
+
+    const clientUrl = this.configService.getOrThrow<string>('CLIENT_URL');
+
+    if (!result.successful) {
+      const failedPayment = await this.markOnlinePaymentFailed(
+        result.paymentId,
+      );
+
+      return {
+        redirectUrl: `${clientUrl}/orders/${failedPayment.orderId}/payment-failed`,
+      };
+    }
+
+    const transactionId = result.providerTransactionId ?? result.txnRefNo;
+
+    if (!transactionId) {
+      throw new BadRequestException('JazzCash transaction ID is missing');
+    }
+
+    const paymentResult = await this.markOnlinePaymentSucceeded(
+      result.paymentId,
+      'JAZZCASH',
+      transactionId,
+    );
+
+    return {
+      redirectUrl: `${clientUrl}/orders/${paymentResult.orderId}/success`,
+    };
+  }
+
   verifyCallback(body: JazzCashCallback) {
     const integritySalt = this.configService.getOrThrow<string>(
       'JAZZCASH_INTEGRITY_SALT',
@@ -136,19 +215,190 @@ export class JazzcashService {
     };
   }
 
-  private formatJazzCashDate(date: Date): string {
-    const year = date.getFullYear().toString();
+  async markOnlinePaymentSucceeded(
+    paymentId: string,
+    provider: PaymentProvider,
+    transactionId: string,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const payment = await tx.payment.findUnique({
+          where: {
+            id: paymentId,
+          },
+          select: {
+            id: true,
+            orderId: true,
+            method: true,
+            provider: true,
+            status: true,
 
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+            order: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        });
 
-    const day = String(date.getDate()).padStart(2, '0');
+        if (!payment) {
+          throw new NotFoundException('Payment not found');
+        }
 
-    const hours = String(date.getHours()).padStart(2, '0');
+        if (payment.method !== PaymentMethod.ONLINE) {
+          throw new BadRequestException('Payment is not an online payment');
+        }
 
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+        if (payment.provider !== provider) {
+          throw new BadRequestException('Payment provider does not match');
+        }
 
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+        if (payment.status === PaymentStatus.PAID) {
+          return {
+            payment: {
+              id: payment.id,
+              orderId: payment.orderId,
+              method: payment.method,
+              provider: payment.provider,
+              status: payment.status,
+            },
+            orderId: payment.orderId,
+          };
+        }
 
-    return `${year}${month}${day}${hours}${minutes}${seconds}`;
+        if (payment.status !== PaymentStatus.PENDING) {
+          throw new BadRequestException(
+            `Payment cannot be completed while status is ${payment.status}`,
+          );
+        }
+
+        if (payment.order.status !== OrderStatus.PENDING_PAYMENT) {
+          throw new BadRequestException(
+            `Order cannot be confirmed while status is ${payment.order.status}`,
+          );
+        }
+
+        const updatedPayment = await tx.payment.update({
+          where: {
+            id: payment.id,
+          },
+          data: {
+            status: PaymentStatus.PAID,
+            transactionId,
+            paidAt: new Date(),
+          },
+          select: {
+            id: true,
+            orderId: true,
+            method: true,
+            provider: true,
+            status: true,
+          },
+        });
+
+        await tx.order.update({
+          where: {
+            id: payment.orderId,
+          },
+          data: {
+            status: OrderStatus.CONFIRMED,
+          },
+        });
+
+        return {
+          payment: updatedPayment,
+          orderId: payment.orderId,
+        };
+      },
+      {
+        maxWait: 10000,
+        timeout: 10000,
+      },
+    );
+  }
+
+  async markOnlinePaymentFailed(paymentId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: {
+          id: paymentId,
+        },
+
+        select: {
+          id: true,
+          orderId: true,
+          method: true,
+          status: true,
+
+          order: {
+            select: {
+              status: true,
+
+              items: {
+                select: {
+                  productId: true,
+                  productName: true,
+                  quantity: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!payment) {
+        throw new NotFoundException('Payment not found');
+      }
+
+      if (payment.method !== PaymentMethod.ONLINE) {
+        throw new BadRequestException('Payment is not an online payment');
+      }
+
+      if (payment.status === PaymentStatus.FAILED) {
+        return {
+          paymentId: payment.id,
+          orderId: payment.orderId,
+        };
+      }
+
+      if (payment.status !== PaymentStatus.PENDING) {
+        throw new BadRequestException(
+          `Payment cannot be failed while status is ${payment.status}`,
+        );
+      }
+
+      if (payment.order.status !== OrderStatus.PENDING_PAYMENT) {
+        throw new BadRequestException(
+          `Order cannot be cancelled while status is ${payment.order.status}`,
+        );
+      }
+
+      await tx.payment.update({
+        where: {
+          id: payment.id,
+        },
+
+        data: {
+          status: PaymentStatus.FAILED,
+        },
+      });
+
+      await tx.order.update({
+        where: {
+          id: payment.orderId,
+        },
+
+        data: {
+          status: OrderStatus.CANCELLED,
+        },
+      });
+
+      await updateProductStock(tx, payment.order.items, 'increment');
+
+      return {
+        paymentId: payment.id,
+        orderId: payment.orderId,
+      };
+    });
   }
 }
