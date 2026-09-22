@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 import { buildActionEmailTemplate } from './templates/action-email.template';
@@ -16,6 +20,7 @@ import { buildMessageEmailTemplate } from './templates/message-email.template';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private readonly transporter: Transporter;
   private readonly fromEmail: string;
   private readonly appName: string;
@@ -49,17 +54,26 @@ export class EmailService {
     });
   }
 
-  private async sendEmail(
-    to: string,
-    subject: string,
-    html: string,
-  ): Promise<void> {
-    await this.transporter.sendMail({
-      from: this.fromEmail,
-      to,
-      subject,
-      html,
-    });
+  async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: this.fromEmail,
+        to,
+        subject,
+        html,
+      });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown email error';
+
+      const stack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(`Failed to send email: ${message}`, stack);
+
+      throw new InternalServerErrorException(
+        'Unable to send email at this time',
+      );
+    }
   }
 
   async sendVerificationEmail(
