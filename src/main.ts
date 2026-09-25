@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { HttpMetricsMiddleware } from './metrics/http-metrics.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -10,6 +11,9 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+  const httpMetricsMiddleware = app.get(HttpMetricsMiddleware);
+
+  app.use(httpMetricsMiddleware.use.bind(httpMetricsMiddleware));
 
   app.use(cookieParser());
 
