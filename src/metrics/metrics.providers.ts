@@ -6,12 +6,12 @@ export const prometheusRegistryProvider = {
   provide: PROMETHEUS_REGISTRY,
 
   useFactory: () => {
-    const registry = new Registry();
+    const prometheusRegistry = new Registry();
 
     collectDefaultMetrics({
-      register: registry,
+      register: prometheusRegistry,
     });
 
-    return registry;
+    return prometheusRegistry;
   },
 };
