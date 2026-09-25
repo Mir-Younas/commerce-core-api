@@ -18,6 +18,7 @@ import { ReturnsModule } from './returns/returns.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
 import { PushModule } from './push/push.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -33,7 +34,6 @@ import { PushModule } from './push/push.module';
     CartModule,
     OrdersModule,
     UsersModule,
-    UsersModule,
     PaymentsModule,
     WishlistModule,
     AddressesModule,
@@ -43,6 +43,7 @@ import { PushModule } from './push/push.module';
     NotificationsModule,
     SmsModule,
     PushModule,
+    MetricsModule,
   ],
   controllers: [],
   providers: [],
