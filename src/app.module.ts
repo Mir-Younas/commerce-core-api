@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
 import { PushModule } from './push/push.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { MetricsModule } from './metrics/metrics.module';
     SmsModule,
     PushModule,
     MetricsModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [],
