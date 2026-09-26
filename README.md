@@ -124,6 +124,82 @@ Admin and Super Admin functionality includes:
 * Manage returns
 * Protected admin routes
 * Role-based permissions
+### Observability and Monitoring
+The API includes a dedicated MetricsModule for application observability using Prometheus-compatible metrics.
+The module creates a shared Prometheus Registry through a custom NestJS provider. collectDefaultMetrics() registers the default Node.js process metrics in that registry, while a custom HttpMetricsMiddleware records request-level HTTP metrics in the same registry.
+The custom HTTP middleware is applied to application routes through MiddlewareConsumer and .forRoutes('*'). The /metrics path is excluded from the custom request instrumentation so that Prometheus scraping does not record itself as application traffic.
+Custom HTTP metrics include:
+Metric	Type	Purpose
+http_requests_total	Counter	Counts completed HTTP requests
+http_request_duration_seconds	Histogram	Measures request latency in seconds
+http_request_heap_delta_bytes	Gauge	Records the change in V8 heapUsed during a request
+http_request_cpu_time_seconds	Histogram	Measures user + system CPU time consumed during a request
+
+
+The custom HTTP metrics use the following labels:
+- method — HTTP method
+- route — request route/path
+- status_code — HTTP response status code
+For each request, the middleware captures the start time, V8 heap usage, and CPU usage. When the response finishes, it calculates request duration, V8 heap delta, and CPU time before updating the Prometheus metrics.
+Default Node.js process metrics collected through collectDefaultMetrics() provide process-level information such as memory, heap, CPU, garbage collection, and other runtime metrics supported by the Prometheus client.
+The /metrics endpoint returns all registered default and custom metrics from the shared Prometheus registry in Prometheus text format. The endpoint is protected with JWT authentication and role-based authorization for ADMIN and SUPER_ADMIN.
+The monitoring flow is:
+Incoming HTTP Request
+        ↓
+HttpMetricsMiddleware
+        ↓
+Request count / duration / V8 heap delta / CPU time
+        ↓
+Shared Prometheus Registry
+        ↑
+collectDefaultMetrics()
+        ↓
+GET /metrics
+        ↓
+Prometheus
+        ↓
+Grafana
+Prometheus can scrape /metrics and store the resulting time-series data. Grafana dashboards can then be configured to visualize HTTP request volume, status codes, latency, RSS memory, V8 heap usage, request heap delta, CPU usage, and other collected metrics.
+The application exposes the metrics required for Prometheus/Grafana monitoring; Grafana dashboard configuration is maintained separately from the API code.
+### Health Checks
+The API includes a dedicated HealthModule for application liveness, readiness, and protected runtime diagnostics.
+Available health endpoints include:
+- GET /health — public liveness check that confirms the NestJS application process is running
+- GET /health/ready — public/internal readiness check that verifies PostgreSQL connectivity through Prisma using a lightweight SELECT 1 query
+- GET /health/details — protected diagnostic endpoint available to ADMIN and SUPER_ADMIN
+The readiness check intentionally does not depend on user login, so database availability can still be checked when authentication cannot access PostgreSQL.
+If PostgreSQL is reachable, the readiness endpoint returns:
+{
+  "status": "ready",
+  "database": "up"
+}
+If the database query fails, the application throws ServiceUnavailableException, returning HTTP 503 Service Unavailable with:
+{
+  "status": "not ready",
+  "database": "down"
+}
+The protected /health/details endpoint provides a quick current-process snapshot using Node.js runtime information:
+- Application uptime from process.uptime()
+- RSS memory from process.memoryUsage().rss
+- V8 heap used from process.memoryUsage().heapUsed
+- V8 heap total from process.memoryUsage().heapTotal
+These health diagnostics are intended as a quick operational snapshot. Historical and continuous memory/CPU monitoring remains the responsibility of Prometheus and Grafana.
+The health-check design separates responsibilities:
+/health
+→ Is the application process alive?
+
+/health/ready
+→ Can the application reach PostgreSQL?
+→ 200 when ready
+→ 503 when the database is unavailable
+
+/health/details
+→ Protected quick runtime diagnostics
+→ uptime + current memory snapshot
+
+/metrics
+→ Continuous Prometheus monitoring
+→ default Node.js metrics + custom HTTP metrics
 ## File Storage
 Product and profile images are stored using **AWS S3**.
 The project includes reusable helpers for:
@@ -156,7 +232,6 @@ Firebase configuration is optional. If Firebase credentials are not configured, 
 SMS notifications are implemented using **Twilio**.
 SMS can be used for transactional application notifications such as order and account-related updates.
 Twilio configuration is optional. If Twilio credentials are not configured, the API can continue running and SMS notifications are skipped.
-
 ## Security
 The API includes multiple security practices:
 * JWT access tokens
@@ -203,6 +278,8 @@ src/
 ├── common/
 ├── coupons/
 ├── email/
+├── health/
+├── metrics/
 ├── notifications/
 ├── orders/
 ├── payments/
@@ -228,8 +305,8 @@ src/
 | Google OAuth      | Social login                |
 | AWS S3            | Image storage               |
 | Nodemailer        | Email delivery              |
-| Firebase Admin SDK| Push notifications          |
-| Twilio            | SMS notifications           |
+| Firebase Admin SDK| Push notifications          |
+| Twilio            | SMS notifications           |
 | Safepay           | Online payment processing   |
 | JazzCash          | Online payment processing   |
 The complete list of npm dependencies is available in `package.json`.
@@ -334,30 +411,21 @@ AWS S3 is used for product and user profile images.
 The configured IAM account should only have the permissions required by the application.
 ### Firebase Push Notifications
 ```env
-
 FIREBASE_PROJECT_ID=
-
 FIREBASE_CLIENT_EMAIL=
-
 FIREBASE_PRIVATE_KEY=
-
 ```
 Firebase Admin SDK is used for server-side push notifications.
 These credentials normally come from a Firebase service account. Keep the real private key only in the local or deployment environment and never commit it to GitHub.
 Firebase push notifications are treated as an optional integration. If these credentials are not configured, the API can continue running while push notifications are skipped.
 ### Twilio SMS
 ```env
-
 TWILIO_ACCOUNT_SID=
-
 TWILIO_AUTH_TOKEN=
-
 TWILIO_PHONE_NUMBER=
-
 ```
 Twilio is used for SMS notifications.
 Twilio SMS is treated as an optional integration. If these credentials are not configured, the API can continue running while SMS notifications are skipped.
-
 ### JazzCash
 ```env
 JAZZCASH_MERCHANT_ID=
@@ -456,6 +524,10 @@ The project demonstrates experience with:
 * Role-based permissions
 * Admin functionality
 * Third-party service integration
+- Prometheus application monitoring
+- Custom HTTP metrics middleware
+- Grafana dashboards and observability
+- Application liveness and database readiness checks
 ## Author
 **Mir Younas**
-Backend developed with NestJS, TypeScript, Prisma, PostgreSQL, AWS S3, Safepay, JazzCash, Google OAuth, Nodemailer, Firebase Admin SDK, Twilio, and related npm packages.
+Backend developed with NestJS, TypeScript, Prisma, PostgreSQL, AWS S3, Safepay, JazzCash, Google OAuth, Nodemailer, Firebase Admin SDK, Twilio, Prometheus, Grafana, and related npm packages.
