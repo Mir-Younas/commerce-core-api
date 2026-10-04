@@ -19,7 +19,14 @@ export class SmsService {
 
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
 
-    this.fromPhone = this.configService.get<string>('TWILIO_PHONE_NUMBER');
+    const fromPhone = this.configService.get<string>('TWILIO_PHONE_NUMBER');
+
+    if (!accountSid || !authToken || !fromPhone) {
+      this.logger.warn('Twilio SMS is not configured');
+      return;
+    }
+
+    this.fromPhone = fromPhone;
 
     this.client = twilio(accountSid, authToken);
   }
