@@ -15,6 +15,9 @@ The project includes authentication, authorization, product management, cart, wi
 * **Twilio** — SMS notifications
 * **Safepay** — Online payment integration
 * **JazzCash** — Online payment integration
+* **OpenTelemetry** — Distributed request tracing
+* **Grafana Tempo** — Trace storage and inspection
+* **Docker** — Application containerization
 ## Main Features
 ### Authentication
 * User registration
@@ -129,11 +132,11 @@ The API includes a dedicated MetricsModule for application observability using P
 The module creates a shared Prometheus Registry through a custom NestJS provider. collectDefaultMetrics() registers the default Node.js process metrics in that registry, while a custom HttpMetricsMiddleware records request-level HTTP metrics in the same registry.
 The custom HTTP middleware is applied to application routes through MiddlewareConsumer and .forRoutes('*'). The /metrics path is excluded from the custom request instrumentation so that Prometheus scraping does not record itself as application traffic.
 Custom HTTP metrics include:
-Metric	Type	Purpose
-http_requests_total	Counter	Counts completed HTTP requests
-http_request_duration_seconds	Histogram	Measures request latency in seconds
-http_request_heap_delta_bytes	Gauge	Records the change in V8 heapUsed during a request
-http_request_cpu_time_seconds	Histogram	Measures user + system CPU time consumed during a request
+Metric  Type    Purpose
+http_requests_total     Counter Counts completed HTTP requests
+http_request_duration_seconds   Histogram       Measures request latency in seconds
+http_request_heap_delta_bytes   Gauge   Records the change in V8 heapUsed during a request
+http_request_cpu_time_seconds   Histogram       Measures user + system CPU time consumed during a request
 
 
 The custom HTTP metrics use the following labels:
@@ -142,25 +145,41 @@ The custom HTTP metrics use the following labels:
 - status_code — HTTP response status code
 For each request, the middleware captures the start time, V8 heap usage, and CPU usage. When the response finishes, it calculates request duration, V8 heap delta, and CPU time before updating the Prometheus metrics.
 Default Node.js process metrics collected through collectDefaultMetrics() provide process-level information such as memory, heap, CPU, garbage collection, and other runtime metrics supported by the Prometheus client.
-The /metrics endpoint returns all registered default and custom metrics from the shared Prometheus registry in Prometheus text format. The endpoint is protected with JWT authentication and role-based authorization for ADMIN and SUPER_ADMIN.
+The /metrics endpoint returns all registered default and custom metrics from the shared Prometheus registry in Prometheus text format. The endpoint is currently exposed for Prometheus scraping and should be protected appropriately in production.
 The monitoring flow is:
 Incoming HTTP Request
-        ↓
+        ↓
 HttpMetricsMiddleware
-        ↓
+        ↓
 Request count / duration / V8 heap delta / CPU time
-        ↓
+        ↓
 Shared Prometheus Registry
-        ↑
+        ↑
 collectDefaultMetrics()
-        ↓
+        ↓
 GET /metrics
-        ↓
+        ↓
 Prometheus
-        ↓
+        ↓
 Grafana
 Prometheus can scrape /metrics and store the resulting time-series data. Grafana dashboards can then be configured to visualize HTTP request volume, status codes, latency, RSS memory, V8 heap usage, request heap delta, CPU usage, and other collected metrics.
 The application exposes the metrics required for Prometheus/Grafana monitoring; Grafana dashboard configuration is maintained separately from the API code.
+### Distributed Tracing with OpenTelemetry and Tempo
+The API also includes OpenTelemetry tracing for request-level diagnostics.
+Tracing is initialized in `src/instrumentation.ts` and loaded before the NestJS application bootstraps through `src/main.ts`.
+OpenTelemetry tracing complements Prometheus metrics: metrics show overall application behavior, while traces help inspect the execution path and timing of an individual request.
+Trace data is sent to Grafana Tempo for storage and inspection.
+Tempo configuration is maintained in `tempo.yml`.
+The tracing flow is:
+Incoming HTTP Request
+        ↓
+OpenTelemetry instrumentation
+        ↓
+Trace / spans
+        ↓
+Grafana Tempo
+        ↓
+Trace inspection
 ### Health Checks
 The API includes a dedicated HealthModule for application liveness, readiness, and protected runtime diagnostics.
 Available health endpoints include:
@@ -170,13 +189,13 @@ Available health endpoints include:
 The readiness check intentionally does not depend on user login, so database availability can still be checked when authentication cannot access PostgreSQL.
 If PostgreSQL is reachable, the readiness endpoint returns:
 {
-  "status": "ready",
-  "database": "up"
+  "status": "ready",
+  "database": "up"
 }
 If the database query fails, the application throws ServiceUnavailableException, returning HTTP 503 Service Unavailable with:
 {
-  "status": "not ready",
-  "database": "down"
+  "status": "not ready",
+  "database": "down"
 }
 The protected /health/details endpoint provides a quick current-process snapshot using Node.js runtime information:
 - Application uptime from process.uptime()
@@ -309,6 +328,9 @@ src/
 | Twilio            | SMS notifications           |
 | Safepay           | Online payment processing   |
 | JazzCash          | Online payment processing   |
+| OpenTelemetry      | Distributed tracing          |
+| Grafana Tempo      | Trace storage and inspection |
+| Docker             | Application containerization |
 The complete list of npm dependencies is available in `package.json`.
 ## Requirements
 Before installing the project, make sure your environment meets the required versions.
@@ -480,6 +502,18 @@ Compiled files are generated inside:
 ```text
 dist/
 ```
+
+## Docker
+The project includes a `Dockerfile` and `.dockerignore` for containerizing the NestJS API.
+Build the Docker image:
+```bash
+docker build -t commerce-core-api .
+```
+Run the container with the project environment file:
+```bash
+docker run --env-file .env -p 8080:8080 commerce-core-api
+```
+The container uses the same application environment variables and external services as the local development setup.
 ## Package Management
 Project dependencies are defined in:
 ```text
@@ -528,6 +562,8 @@ The project demonstrates experience with:
 - Custom HTTP metrics middleware
 - Grafana dashboards and observability
 - Application liveness and database readiness checks
+- OpenTelemetry distributed tracing with Grafana Tempo
+- Docker containerization
 ## Author
 **Mir Younas**
 Backend developed with NestJS, TypeScript, Prisma, PostgreSQL, AWS S3, Safepay, JazzCash, Google OAuth, Nodemailer, Firebase Admin SDK, Twilio, Prometheus, Grafana, and related npm packages.
